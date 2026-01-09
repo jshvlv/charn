@@ -33,6 +33,7 @@ def get_status() -> dict:
         "model_path": _meta.model_path,
         "model_type": _meta.model_type,
         "hyperparameters": _meta.hyperparameters,
+        "feature_schema": _meta.feature_schema,
     }
 
 

@@ -48,3 +48,9 @@ class TrainingConfigChurn(BaseModel):
         }
     }
 
+
+class ErrorResponse(BaseModel):
+    code: str = Field(..., description="Machine-readable error code.")
+    message: str = Field(..., description="Human-readable error message.")
+    details: dict | list | str | None = Field(default=None, description="Optional error details.")
+

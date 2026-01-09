@@ -29,6 +29,7 @@ class ModelMeta:
     model_path: str
     model_type: str
     hyperparameters: dict[str, Any]
+    feature_schema: list[dict[str, str]]
 
 
 def _utc_now_iso() -> str:
@@ -47,6 +48,7 @@ def save_churn_model(
     metrics: dict[str, float],
     model_type: str,
     hyperparameters: dict[str, Any] | None = None,
+    feature_schema: list[dict[str, str]] | None = None,
     artifacts_dir: Path | None = None,
 ) -> ModelMeta:
     artifacts_dir = artifacts_dir or ARTIFACTS_DIR
@@ -68,6 +70,7 @@ def save_churn_model(
         model_path=str(model_file),
         model_type=str(model_type),
         hyperparameters=dict(hyperparameters or {}),
+        feature_schema=list(feature_schema or []),
     )
 
     meta_file.write_text(json.dumps(asdict(meta), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -96,6 +99,7 @@ def load_churn_model(
             model_path=str(meta_raw["model_path"]),
             model_type=str(meta_raw.get("model_type", "unknown")),
             hyperparameters=dict(meta_raw.get("hyperparameters", {}) or {}),
+            feature_schema=list(meta_raw.get("feature_schema", []) or []),
         )
         model_path = Path(meta.model_path)
         if model_path.exists():
@@ -117,6 +121,7 @@ def load_churn_model(
             model_path=str(legacy),
             model_type="unknown",
             hyperparameters={},
+            feature_schema=[],
         )
         return pipeline, meta
 

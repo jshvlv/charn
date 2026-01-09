@@ -7,21 +7,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 from app.data.churn_dataset import load_churn_dataframe
-
-NUMERIC_COLUMNS = [
-    "monthly_fee",
-    "usage_hours",
-    "support_requests",
-    "account_age_months",
-    "failed_payments",
-    "autopay_enabled",
-]
-
-CATEGORICAL_COLUMNS = [
-    "region",
-    "device_type",
-    "payment_method",
-]
+from app.features.schema import CATEGORICAL_COLUMNS, NUMERIC_COLUMNS
 
 TARGET_COLUMN = "churn"
 
