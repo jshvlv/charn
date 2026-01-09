@@ -121,5 +121,3 @@ def split_info(
         "test_size_fraction": float(test_size),
         "random_state": int(random_state),
     }
-
-

@@ -44,5 +44,3 @@ def dataset_info(*, path: str | Path | None = None) -> dict[str, Any]:
         "feature_names": feature_names,
         "churn_distribution": churn_counts,
     }
-
-
