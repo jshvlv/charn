@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -15,6 +15,7 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 class TrainingMetrics:
     accuracy: float
     f1: float
+    roc_auc: float | None = None
 
 
 def create_estimator(model_type: str, hyperparameters: dict) -> object:
@@ -71,9 +72,20 @@ def evaluate_churn_model(
     y_test: pd.Series,
 ) -> TrainingMetrics:
     y_pred = pipeline.predict(x_test)
+    proba = None
+    roc_auc = None
+    if hasattr(pipeline, "predict_proba"):
+        proba = pipeline.predict_proba(x_test)
+        if proba is not None and proba.shape[1] >= 2:
+            try:
+                roc_auc = float(roc_auc_score(y_test, proba[:, 1]))
+            except Exception:
+                roc_auc = None
+
     return TrainingMetrics(
         accuracy=float(accuracy_score(y_test, y_pred)),
         f1=float(f1_score(y_test, y_pred, zero_division=0)),
+        roc_auc=roc_auc,
     )
 
 

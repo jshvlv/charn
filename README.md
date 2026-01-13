@@ -78,6 +78,10 @@ curl -sS -X POST "http://127.0.0.1:8000/model/train?test_size=0.2&random_state=4
 
 - `GET /model/status`
   - Returns whether a model is loaded, when it was trained, metrics, model type and hyperparameters
+- `GET /model/metrics?model_type=&limit=`
+  - Returns latest metrics and history of trainings (filter by model_type, limit recent records)
+- `GET /health`
+  - Returns basic service health: dataset/model availability
 
 ### Predict
 - `POST /predict`
@@ -91,8 +95,26 @@ curl -sS -X POST "http://127.0.0.1:8000/model/train?test_size=0.2&random_state=4
 - `app/features/` — data preparation and splitting
 - `app/model/` — training utilities
 - `artifacts/` — local model artifacts (ignored by git)
-- `tests/` — tests (future)
+- `tests/` — tests
 - `docker/` — Docker-related files
 - `scripts/` — helper scripts
+
+## Docker
+Build:
+```bash
+docker build -t churn-service .
+```
+
+Run:
+```bash
+docker run -p 8000:8000 churn-service
+```
+
+Check:
+```bash
+curl -sS http://127.0.0.1:8000/health
+# Docs:
+# http://127.0.0.1:8000/docs
+```
 
 

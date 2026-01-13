@@ -3,10 +3,13 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+import logging
 
 import pandas as pd
 
 from app.api.schemas.churn import DatasetRowChurn
+
+logger = logging.getLogger(__name__)
 
 
 def _default_dataset_path() -> Path:
@@ -16,7 +19,9 @@ def _default_dataset_path() -> Path:
 @lru_cache(maxsize=1)
 def load_churn_dataframe(path: str | Path | None = None) -> pd.DataFrame:
     dataset_path = Path(path) if path is not None else _default_dataset_path()
+    logger.info("Loading dataset from %s", dataset_path)
     df = pd.read_csv(dataset_path)
+    logger.info("Loaded dataset shape=%s", df.shape)
     return df
 
 

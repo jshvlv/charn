@@ -24,30 +24,30 @@ def _train_logreg(client: TestClient) -> dict:
     return resp.json()
 
 
-def test_health(app_client: TestClient) -> None:
-    resp = app_client.get("/")
+def test_health(app_client_with_data: TestClient) -> None:
+    resp = app_client_with_data.get("/")
     assert resp.status_code == 200
     assert resp.json() == {"message": "ml churn service is running"}
 
 
-def test_dataset_info_and_preview(app_client: TestClient) -> None:
-    info = app_client.get("/dataset/info")
+def test_dataset_info_and_preview(app_client_with_data: TestClient) -> None:
+    info = app_client_with_data.get("/dataset/info")
     assert info.status_code == 200
     body = info.json()
     assert body["rows"] > 0 and body["columns"] > 0
     assert "churn" not in body["feature_names"]
 
-    preview = app_client.get("/dataset/preview", params={"n": 2})
+    preview = app_client_with_data.get("/dataset/preview", params={"n": 2})
     assert preview.status_code == 200
     rows = preview.json()
     assert isinstance(rows, list) and len(rows) == 2
 
-    bad = app_client.get("/dataset/preview", params={"n": 0})
+    bad = app_client_with_data.get("/dataset/preview", params={"n": 0})
     assert bad.status_code == 422
 
 
-def test_predict_requires_trained_model(app_client: TestClient) -> None:
-    resp = app_client.post(
+def test_predict_requires_trained_model(app_client_with_data: TestClient) -> None:
+    resp = app_client_with_data.post(
         "/predict",
         json={
             "monthly_fee": 19.99,
@@ -66,19 +66,19 @@ def test_predict_requires_trained_model(app_client: TestClient) -> None:
     assert body["code"] == "model_not_trained"
 
 
-def test_train_and_status_and_predict_single(app_client: TestClient) -> None:
-    train_body = _train_logreg(app_client)
+def test_train_and_status_and_predict_single(app_client_with_data: TestClient) -> None:
+    train_body = _train_logreg(app_client_with_data)
     assert "accuracy" in train_body and "f1" in train_body
     assert train_body["model_type"] == "logreg"
 
-    status = app_client.get("/model/status")
+    status = app_client_with_data.get("/model/status")
     assert status.status_code == 200
     status_body = status.json()
     assert status_body["trained"] is True
     assert status_body["model_type"] == "logreg"
     assert "hyperparameters" in status_body
 
-    pred = app_client.post(
+    pred = app_client_with_data.post(
         "/predict",
         json={
             "monthly_fee": 19.99,
@@ -96,10 +96,10 @@ def test_train_and_status_and_predict_single(app_client: TestClient) -> None:
     _assert_prediction_item(pred.json())
 
 
-def test_train_and_predict_batch(app_client: TestClient) -> None:
-    _train_logreg(app_client)
+def test_train_and_predict_batch(app_client_with_data: TestClient) -> None:
+    _train_logreg(app_client_with_data)
 
-    pred = app_client.post(
+    pred = app_client_with_data.post(
         "/predict",
         json=[
             {
@@ -133,9 +133,9 @@ def test_train_and_predict_batch(app_client: TestClient) -> None:
         _assert_prediction_item(item)
 
 
-def test_predict_invalid_features(app_client: TestClient) -> None:
-    _train_logreg(app_client)
-    resp = app_client.post(
+def test_predict_invalid_features(app_client_with_data: TestClient) -> None:
+    _train_logreg(app_client_with_data)
+    resp = app_client_with_data.post(
         "/predict",
         json={"usage_hours": 10, "region": "europe"},  # missing required fields
     )
@@ -143,8 +143,8 @@ def test_predict_invalid_features(app_client: TestClient) -> None:
     assert resp.status_code == 422
 
 
-def test_model_schema_endpoint(app_client: TestClient) -> None:
-    resp = app_client.get("/model/schema")
+def test_model_schema_endpoint(app_client_with_data: TestClient) -> None:
+    resp = app_client_with_data.get("/model/schema")
     assert resp.status_code == 200
     body = resp.json()
     assert "features" in body

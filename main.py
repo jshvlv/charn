@@ -14,6 +14,7 @@ from app.model.registry import get_model as get_trained_model
 from app.model.registry import get_status as get_model_status
 from app.model.registry import init_from_disk as init_model_from_disk
 from app.model.registry import set_model as set_current_model
+from app.model.history import append_record, get_history
 from app.model.store import save_churn_model
 from app.model.training import evaluate_churn_model, train_churn_model
 
@@ -40,6 +41,25 @@ def _startup_load_model() -> None:
 @app.get("/")
 def root() -> dict:
     return {"message": "ml churn service is running"}
+
+
+@app.get("/health")
+def health() -> dict:
+    dataset_ok = True
+    try:
+        df = load_churn_dataframe()
+        dataset_ok = not df.empty
+    except Exception as e:  # noqa: BLE001
+        logger.warning("Health check dataset load failed: %s", e)
+        dataset_ok = False
+
+    status = get_model_status()
+    model_ok = bool(status.get("trained"))
+    return {
+        "status": "ok" if dataset_ok else "degraded",
+        "model_loaded": model_ok,
+        "dataset_loaded": dataset_ok,
+    }
 
 
 def _error_response(code: str, message: str, details=None, status_code: int = 400) -> JSONResponse:
@@ -165,6 +185,7 @@ def predict(
                 "details": None,
             },
         )
+    logger.info("Predict request: batch=%s items=%d", isinstance(payload, list), len(payload) if isinstance(payload, list) else 1)
 
     is_batch = isinstance(payload, list)
     items = payload if is_batch else [payload]
@@ -187,6 +208,7 @@ def predict(
         proba = model.predict_proba(x)
         pred = model.predict(x)
     except ValueError as e:
+        logger.exception("Prediction error")
         raise HTTPException(
             status_code=400,
             detail={"code": "prediction_error", "message": "Failed to run prediction", "details": str(e)},
@@ -326,6 +348,7 @@ def model_train(
             },
         )
 
+    logger.info("Training started: model_type=%s", config.model_type)
     split = make_train_test_split(test_size=test_size, random_state=random_state)
     try:
         pipeline = train_churn_model(
@@ -343,18 +366,46 @@ def model_train(
             detail={"code": "training_error", "message": "Failed to train model", "details": str(e)},
         ) from e
 
+    logger.info(
+        "Training finished: model_type=%s metrics=%s",
+        config.model_type,
+        {"accuracy": metrics.accuracy, "f1": metrics.f1, "roc_auc": metrics.roc_auc},
+    )
+
     meta = save_churn_model(
         pipeline,
-        metrics={"accuracy": metrics.accuracy, "f1": metrics.f1},
+        metrics={
+            "accuracy": metrics.accuracy,
+            "f1": metrics.f1,
+            "roc_auc": metrics.roc_auc,
+        },
         model_type=config.model_type,
         hyperparameters=config.hyperparameters,
         feature_schema=feature_schema(),
     )
     set_current_model(pipeline, meta)
 
+    # Запишем историю обучения
+    append_record(
+        {
+            "timestamp": meta.trained_at,
+            "model_type": meta.model_type,
+            "hyperparameters": meta.hyperparameters,
+            "metrics": {
+                "accuracy": metrics.accuracy,
+                "f1": metrics.f1,
+                "roc_auc": metrics.roc_auc,
+            },
+            "version": meta.version,
+            "test_size": test_size,
+            "random_state": random_state,
+        }
+    )
+
     return {
         "accuracy": metrics.accuracy,
         "f1": metrics.f1,
+        "roc_auc": metrics.roc_auc,
         "train_size": int(len(split.x_train)),
         "test_size": int(len(split.x_test)),
         "trained_at": meta.trained_at,
@@ -375,4 +426,14 @@ def model_schema() -> dict:
         "features": feature_schema(),
         "numeric_features": NUMERIC_COLUMNS,
         "categorical_features": CATEGORICAL_COLUMNS,
+    }
+
+
+@app.get("/model/metrics")
+def model_metrics(model_type: str | None = None, limit: int = Query(None, ge=1, le=100)) -> dict:
+    history = get_history(model_type=model_type, limit=limit)
+    latest = history[0] if history else None
+    return {
+        "latest": latest,
+        "history": history,
     }
