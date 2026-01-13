@@ -116,17 +116,19 @@ def app_client_with_data(
 ) -> TestClient:
     """Клиент с подменой загрузки датасета на маленький синтетический DataFrame."""
     import app.data.churn_dataset as churn_dataset
-    import main as main_module
+    import app.api.routes.model as model_routes
+    import app.api.routes.health as health_routes
 
     client = _base_client(tmp_path, monkeypatch)
 
-    # Подменяем загрузку датасета в обоих модулях.
-    monkeypatch.setattr(churn_dataset, "load_churn_dataframe", lambda path=None: synthetic_df.copy(), raising=True)
-    monkeypatch.setattr(main_module, "load_churn_dataframe", lambda path=None: synthetic_df.copy(), raising=True)
-
-    # Очистим кеш после подмены
+    # Очистим кеш до подмены
     if hasattr(churn_dataset.load_churn_dataframe, "cache_clear"):
         churn_dataset.load_churn_dataframe.cache_clear()
+
+    # Подменяем загрузку датасета в нужных местах.
+    monkeypatch.setattr(churn_dataset, "load_churn_dataframe", lambda path=None: synthetic_df.copy(), raising=True)
+    monkeypatch.setattr(model_routes, "load_churn_dataframe", lambda path=None: synthetic_df.copy(), raising=True)
+    monkeypatch.setattr(health_routes, "load_churn_dataframe", lambda path=None: synthetic_df.copy(), raising=True)
 
     return client
 
