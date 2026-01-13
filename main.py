@@ -1,10 +1,10 @@
 from typing import Annotated
+import logging
+from pathlib import Path
 
 import pandas as pd
 from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
-import logging
-from pathlib import Path
 
 from app.api.schemas.churn import ErrorResponse, FeatureVectorChurn, PredictionResponseChurn, TrainingConfigChurn
 from app.data.churn_dataset import dataset_info, load_churn_dataframe, preview_rows
@@ -185,7 +185,11 @@ def predict(
                 "details": None,
             },
         )
-    logger.info("Predict request: batch=%s items=%d", isinstance(payload, list), len(payload) if isinstance(payload, list) else 1)
+    logger.info(
+        "Predict request: batch=%s items=%d",
+        isinstance(payload, list),
+        len(payload) if isinstance(payload, list) else 1,
+    )
 
     is_batch = isinstance(payload, list)
     items = payload if is_batch else [payload]
@@ -349,6 +353,7 @@ def model_train(
         )
 
     logger.info("Training started: model_type=%s", config.model_type)
+    logger.info("Training started: model_type=%s", config.model_type)
     split = make_train_test_split(test_size=test_size, random_state=random_state)
     try:
         pipeline = train_churn_model(
@@ -365,6 +370,12 @@ def model_train(
             status_code=400,
             detail={"code": "training_error", "message": "Failed to train model", "details": str(e)},
         ) from e
+
+    logger.info(
+        "Training finished: model_type=%s metrics=%s",
+        config.model_type,
+        {"accuracy": metrics.accuracy, "f1": metrics.f1, "roc_auc": metrics.roc_auc},
+    )
 
     logger.info(
         "Training finished: model_type=%s metrics=%s",
