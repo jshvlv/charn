@@ -25,9 +25,11 @@ def _train_logreg(client: TestClient) -> dict:
 
 
 def test_health(app_client_with_data: TestClient) -> None:
-    resp = app_client_with_data.get("/")
+    resp = app_client_with_data.get("/health")
     assert resp.status_code == 200
-    assert resp.json() == {"message": "ml churn service is running"}
+    body = resp.json()
+    assert set(body.keys()) == {"status", "model_loaded", "dataset_loaded"}
+    assert body["dataset_loaded"] is True
 
 
 def test_dataset_info_and_preview(app_client_with_data: TestClient) -> None:
@@ -166,11 +168,11 @@ def test_model_schema_endpoint(app_client_with_data: TestClient) -> None:
 
 def test_train_error_empty_dataset(app_client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     import app.data.churn_dataset as churn_dataset
-    import main as main_module
+    import app.api.routes.model as model_routes
 
     # Patch all entry points to the loader used by the API.
     monkeypatch.setattr(churn_dataset, "load_churn_dataframe", lambda path=None: pd.DataFrame())
-    monkeypatch.setattr(main_module, "load_churn_dataframe", lambda path=None: pd.DataFrame())
+    monkeypatch.setattr(model_routes, "load_churn_dataframe", lambda path=None: pd.DataFrame())
 
     resp = app_client.post(
         "/model/train",
